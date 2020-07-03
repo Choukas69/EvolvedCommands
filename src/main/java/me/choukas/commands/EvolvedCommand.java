@@ -14,6 +14,8 @@ import me.choukas.commands.api.Parameter;
 import me.choukas.commands.utils.Tuple;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -39,6 +41,19 @@ public abstract class EvolvedCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
+
+        if(sender instanceof ConsoleCommandSender && !description.isConsoleExecutable()){
+
+            sender.sendMessage("§cYou don't have permission to execute that command !");
+            return false;
+
+        }else if(sender instanceof Player){
+            if(!sender.hasPermission(description.getPermission()) && !sender.isOp()) {
+                sender.sendMessage("§cYou don't have permission to execute that command !");
+                return false;
+            }
+        }
+
         if (args.length == 0) {
             if (children.isEmpty() && !params.isEmpty() && params.stream().anyMatch(Tuple::getValue)) {
                 sendHelp(sender);
