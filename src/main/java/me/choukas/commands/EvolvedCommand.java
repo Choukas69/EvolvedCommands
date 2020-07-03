@@ -3,11 +3,14 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  * Proprietary and confidential
  *
- * Written by Choukas <juan.vlroo@gmail.com>, 06/06/2020 20:40
+ * Written by Choukas <juan.vlroo@gmail.com>, 22/06/2020 19:54
  */
 
 package me.choukas.commands;
 
+import me.choukas.commands.api.CommandDescription;
+import me.choukas.commands.api.Condition;
+import me.choukas.commands.api.Parameter;
 import me.choukas.commands.utils.Tuple;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;

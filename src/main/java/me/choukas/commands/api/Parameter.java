@@ -3,10 +3,10 @@
  * Unauthorized copying of this file, via any medium is strictly prohibited
  * Proprietary and confidential
  *
- * Written by Choukas <juan.vlroo@gmail.com>, 06/06/2020 20:40
+ * Written by Choukas <juan.vlroo@gmail.com>, 22/06/2020 19:56
  */
 
-package me.choukas.commands;
+package me.choukas.commands.api;
 
 import java.util.Optional;
 
