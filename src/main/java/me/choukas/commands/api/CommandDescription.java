@@ -42,17 +42,12 @@ public class CommandDescription {
         return permission;
     }
 
-    public boolean isConsoleExecutable() {
-        return consoleExecutable;
-    }
-
     public static class Builder {
 
         private String name = "";
         private List<String> aliases = new ArrayList<>();
         private String description = "";
         private String permission = "";
-        private boolean consoleExecutable = true;
 
         public Builder withName(String name) {
             this.name = name;
@@ -74,18 +69,12 @@ public class CommandDescription {
             return this;
         }
 
-        public Builder withConsoleExecutable(boolean consoleExecutable){
-            this.consoleExecutable = consoleExecutable;
-            return this;
-        }
-
         public CommandDescription build() {
             CommandDescription commandDescription = new CommandDescription();
             commandDescription.name = name;
             commandDescription.aliases = aliases;
             commandDescription.description = description;
             commandDescription.permission = permission;
-            commandDescription.consoleExecutable = consoleExecutable;
 
             return commandDescription;
         }
