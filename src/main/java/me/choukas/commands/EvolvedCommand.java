@@ -14,12 +14,13 @@ import me.choukas.commands.api.Parameter;
 import me.choukas.commands.utils.Tuple;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
-public abstract class EvolvedCommand extends Command {
+public class EvolvedCommand extends Command {
 
     private final CommandDescription description;
 
@@ -39,6 +40,14 @@ public abstract class EvolvedCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
+        if (sender instanceof Player) {
+            if (!sender.hasPermission(description.getPermission()) && !sender.isOp()) {
+                sender.sendMessage("§cYou don't have permission to execute that command !");
+
+                return false;
+            }
+        }
+
         if (args.length == 0) {
             if (children.isEmpty() && !params.isEmpty() && params.stream().anyMatch(Tuple::getValue)) {
                 sendHelp(sender);
@@ -127,7 +136,7 @@ public abstract class EvolvedCommand extends Command {
         return list;
     }
 
-    protected abstract void define();
+    protected void define() {}
 
     protected void execute(CommandSender sender) {
         sendFullHelp(sender);

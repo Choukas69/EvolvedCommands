@@ -18,6 +18,7 @@ public class CommandDescription {
     private List<String> aliases;
     private String description;
     private String permission;
+    private boolean consoleExecutable;
 
     private CommandDescription() {}
 
