@@ -8,21 +8,33 @@
 
 package me.choukas.commands.api;
 
+import org.bukkit.command.CommandSender;
+
 import java.util.List;
 
-public abstract class Parameter<T> implements TabCompleter<T> {
+public abstract class Parameter<T> extends Configurable implements TabCompleter<T> {
 
     private final String name;
+    private final boolean extended;
 
     public Parameter(String name) {
-        this.name = name;
+        this(name, false);
     }
 
-    public abstract List<Condition<String>> getConditions();
+    public Parameter(String name, boolean extended) {
+        this.name = name;
+        this.extended = extended;
+    }
+
+    public abstract List<Condition<String>> getConditions(CommandSender sender);
 
     public abstract T get(String arg);
 
     public String getName() {
         return name;
+    }
+
+    public boolean isExtended() {
+        return extended;
     }
 }

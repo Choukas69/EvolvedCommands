@@ -8,10 +8,7 @@
 
 package me.choukas.commands;
 
-import me.choukas.commands.api.CommandDescription;
-import me.choukas.commands.api.Condition;
-import me.choukas.commands.api.Requirement;
-import me.choukas.commands.api.Parameter;
+import me.choukas.commands.api.*;
 import me.choukas.commands.utils.Tuple;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -50,7 +47,7 @@ public class EvolvedCommand extends Command {
         }
 
         if (args.length == 0) {
-            if (children.isEmpty() && !params.isEmpty() && params.stream().anyMatch(Tuple::getValue)) {
+            if (children.isEmpty() && !params.isEmpty() && params.get(0).getValue()) {
                 sendHelp(sender);
             } else {
                 tryExecute(sender, args);
@@ -74,10 +71,18 @@ public class EvolvedCommand extends Command {
                     if (children.isEmpty()) {
                         long requiredParams = params.stream().filter(Tuple::getValue).count();
 
-                        if (args.length >= requiredParams && args.length <= params.size()) {
-                            tryExecute(sender, args);
+                        if (params.stream().anyMatch(param -> param.getKey().isExtended())) {
+                            if (args.length >= requiredParams) {
+                                tryExecute(sender, args);
+                            } else {
+                                sendHelp(sender);
+                            }
                         } else {
-                            sendHelp(sender);
+                            if (args.length >= requiredParams && args.length <= params.size()) {
+                                tryExecute(sender, args);
+                            } else {
+                                sendHelp(sender);
+                            }
                         }
                     } else {
                         sendFullHelp(sender);
@@ -137,7 +142,8 @@ public class EvolvedCommand extends Command {
         return list;
     }
 
-    protected void define() {}
+    protected void define() {
+    }
 
     protected void execute(CommandSender sender) {
         sendFullHelp(sender);
@@ -152,22 +158,30 @@ public class EvolvedCommand extends Command {
         }
     }
 
-    protected void addParam(Parameter<?> param, boolean required) {
+    protected void addParameter(Parameter<?> param, boolean required, Arg<?>... args) {
         if (children.isEmpty()) {
-            if (required) {
-                if (!params.isEmpty() && !params.get(params.size() - 1).getValue()) {
-                    throw new IllegalArgumentException("Vous ne pouvez pas ajouter un argument requis après un argument facultatif");
+            if (!params.isEmpty()) {
+                Tuple<Parameter<?>, Boolean> lastParam = params.get(params.size() - 1);
+
+                if (required) {
+                    if (!lastParam.getValue()) {
+                        throw new IllegalArgumentException("You cannot add a required param after a facultative one");
+                    }
+                }
+
+                if (lastParam.getKey().isExtended()) {
+                    throw new IllegalArgumentException("You cannot add a param after an extended one");
                 }
             }
 
+            param.inject(args);
             params.add(Tuple.of(param, required));
         } else {
             throw new RuntimeException("You cannot infer params and sub commands");
         }
     }
 
-    @SafeVarargs
-    protected final void addCondition(Requirement requirement, Tuple<String, ?>... args) {
+    protected final void addRequirement(Requirement requirement, Arg<?>... args) {
         requirement.inject(args);
         requirements.add(requirement);
     }
@@ -254,14 +268,18 @@ public class EvolvedCommand extends Command {
 
     private boolean checkPreconditions(CommandSender sender, boolean verbose) {
         for (Requirement requirement : requirements) {
-            Condition<CommandSender> condition = requirement.getCondition();
+            requirement.apply(sender);
 
-            if (!condition.check(sender)) {
-                if (verbose) {
-                    sender.sendMessage(condition.getMessage(sender));
+            List<Condition<CommandSender>> conditions = requirement.getConditions();
+
+            for (Condition<CommandSender> condition : conditions) {
+                if (!condition.check(sender)) {
+                    if (verbose) {
+                        sender.sendMessage(condition.getMessage(sender));
+                    }
+
+                    return false;
                 }
-
-                return false;
             }
         }
 
@@ -273,11 +291,19 @@ public class EvolvedCommand extends Command {
             this.args.clear();
 
             for (int i = 0; i < args.length; i++) {
-                String arg = args[i];
                 Tuple<Parameter<?>, Boolean> tuple = params.get(i);
                 Parameter<?> param = tuple.getKey();
+                param.apply(sender);
 
-                for (Condition<String> condition : param.getConditions()) {
+                String arg = args[i];
+
+                if (param.isExtended()) {
+                    String[] subArg = Arrays.copyOfRange(args, i, args.length);
+
+                    arg = String.join(" ", subArg);
+                }
+
+                for (Condition<String> condition : param.getConditions(sender)) {
                     if (!condition.check(arg)) {
                         sender.sendMessage(condition.getMessage(arg));
                         return;
@@ -285,6 +311,10 @@ public class EvolvedCommand extends Command {
                 }
 
                 this.args.offer(Tuple.of(param.get(arg), tuple.getValue()));
+
+                if (param.isExtended()) {
+                    break;
+                }
             }
 
             execute(sender);
