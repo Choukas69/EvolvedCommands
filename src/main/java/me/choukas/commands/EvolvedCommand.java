@@ -10,6 +10,7 @@ package me.choukas.commands;
 
 import me.choukas.commands.api.*;
 import me.choukas.commands.utils.Tuple;
+import net.md_5.bungee.api.chat.BaseComponent;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -38,35 +39,29 @@ public class EvolvedCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
-        if (sender instanceof Player) {
-            if (!sender.hasPermission(description.getPermission()) && !sender.isOp()) {
-                sender.sendMessage("§cYou don't have permission to execute that command !");
-
-                return false;
-            }
-        }
-
-        if (args.length == 0) {
-            if (children.isEmpty() && !params.isEmpty() && params.get(0).getValue()) {
-                sendHelp(sender);
-            } else {
-                tryExecute(sender, args);
-            }
+        if (sender instanceof Player && !sender.hasPermission(description.getPermission()) && !sender.isOp()) {
+            sender.sendMessage("§cVous n'avez pas la permission d'exécuter cette commande");
         } else {
-            Optional<EvolvedCommand> optional = Optional.empty();
-
-            try {
-                optional = children.stream()
+            if (args.length == 0) {
+                if (children.isEmpty() && !params.isEmpty() && params.get(0).getValue()) {
+                    sendHelp(sender);
+                } else {
+                    tryExecute(sender, args);
+                }
+            } else {
+                Optional<EvolvedCommand> optional = children.stream()
                         .filter(child ->
                                 child.description.getName().equalsIgnoreCase(args[0]) || child.description.getAliases().contains(args[0]))
                         .findAny();
-            } catch (ArrayIndexOutOfBoundsException ignored) {
 
-            } finally {
                 if (optional.isPresent()) {
                     EvolvedCommand command = optional.get();
-                    String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
-                    command.execute(sender, args[0], newArgs);
+
+                    if (command.checkPreconditions(sender, true)) {
+                        String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
+
+                        command.execute(sender, args[0], newArgs);
+                    }
                 } else {
                     if (children.isEmpty()) {
                         long requiredParams = params.stream().filter(Tuple::getValue).count();
@@ -94,45 +89,38 @@ public class EvolvedCommand extends Command {
         return true;
     }
 
-    @SuppressWarnings("ReturnInsideFinallyBlock")
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
         List<String> list = new ArrayList<>();
 
         if (checkPreconditions(sender, false)) {
-            Optional<EvolvedCommand> subCommand = Optional.empty();
+            Optional<EvolvedCommand> subCommand = children.stream()
+                    .filter(command ->
+                            command.description.getName().equalsIgnoreCase(args[0]))
+                    .findFirst();
 
-            try {
-                subCommand = children.stream()
-                        .filter(command ->
-                                command.description.getName().equalsIgnoreCase(args[0]))
-                        .findFirst();
-            } catch (ArrayIndexOutOfBoundsException ignored) {
+            if (subCommand.isPresent()) {
+                EvolvedCommand command = subCommand.get();
+                String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
 
-            } finally {
-                if (subCommand.isPresent()) {
-                    EvolvedCommand command = subCommand.get();
-                    String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
+                return command.tabComplete(sender, args[0], newArgs);
+            } else {
+                if (!children.isEmpty()) {
+                    list.addAll(children.stream()
+                            .filter(command ->
+                                    command.description.getName().startsWith(args[0]) &&
+                                            command.checkPreconditions(sender, false))
+                            .map(command ->
+                                    command.description.getName())
+                            .collect(Collectors.toList()));
+                } else if (!params.isEmpty()) {
+                    long requiredParams = params.stream().filter(Tuple::getValue).count();
 
-                    return command.tabComplete(sender, args[0], newArgs);
-                } else {
-                    if (!children.isEmpty()) {
-                        list.addAll(children.stream()
-                                .filter(command ->
-                                        command.description.getName().startsWith(args[0]) &&
-                                                checkPreconditions(sender, false))
-                                .map(command ->
-                                        command.description.getName())
+                    if (args.length >= requiredParams && args.length <= params.size()) {
+                        list.addAll(params.get(args.length - 1).getKey().tabComplete(sender).stream()
+                                .filter(o -> o.toString().startsWith(args[args.length - 1]))
+                                .map(Object::toString)
                                 .collect(Collectors.toList()));
-                    } else if (!params.isEmpty()) {
-                        long requiredParams = params.stream().filter(Tuple::getValue).count();
-
-                        if (args.length >= requiredParams && args.length <= params.size()) {
-                            list.addAll(params.get(args.length - 1).getKey().tabComplete(sender).stream()
-                                    .filter(o -> o.toString().startsWith(args[args.length - 1]))
-                                    .map(Object::toString)
-                                    .collect(Collectors.toList()));
-                        }
                     }
                 }
             }
@@ -275,7 +263,7 @@ public class EvolvedCommand extends Command {
             for (Condition<CommandSender> condition : conditions) {
                 if (!condition.check(sender)) {
                     if (verbose) {
-                        sender.sendMessage(condition.getMessage(sender));
+                        sendMessage(sender, condition.getMessage(sender));
                     }
 
                     return false;
@@ -305,7 +293,8 @@ public class EvolvedCommand extends Command {
 
                 for (Condition<String> condition : param.getConditions(sender)) {
                     if (!condition.check(arg)) {
-                        sender.sendMessage(condition.getMessage(arg));
+                        sendMessage(sender, condition.getMessage(arg));
+
                         return;
                     }
                 }
@@ -318,6 +307,14 @@ public class EvolvedCommand extends Command {
             }
 
             execute(sender);
+        }
+    }
+
+    private void sendMessage(CommandSender sender, BaseComponent component) {
+        if (sender instanceof Player) {
+            ((Player) sender).spigot().sendMessage(component);
+        } else {
+            sender.sendMessage(component.toPlainText());
         }
     }
 }
