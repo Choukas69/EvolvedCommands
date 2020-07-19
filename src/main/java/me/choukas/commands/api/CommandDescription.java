@@ -44,10 +44,10 @@ public class CommandDescription {
 
     public static class Builder {
 
-        private String name = "";
+        private String name = null;
         private List<String> aliases = new ArrayList<>();
-        private String description = "";
-        private String permission = "";
+        private String description = null;
+        private String permission = null;
 
         public Builder withName(String name) {
             this.name = name;

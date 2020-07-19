@@ -6,5 +6,5 @@ public interface Condition<T> {
 
     boolean check(T o);
 
-    BaseComponent getMessage(T o);
+    BaseComponent[] getMessage(T o);
 }

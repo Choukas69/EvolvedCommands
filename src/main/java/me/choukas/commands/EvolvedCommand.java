@@ -11,6 +11,8 @@ package me.choukas.commands;
 import me.choukas.commands.api.*;
 import me.choukas.commands.utils.Tuple;
 import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.TextComponent;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,9 +41,7 @@ public class EvolvedCommand extends Command {
 
     @Override
     public boolean execute(CommandSender sender, String label, String[] args) {
-        if (sender instanceof Player && !sender.hasPermission(description.getPermission()) && !sender.isOp()) {
-            sender.sendMessage("§cVous n'avez pas la permission d'exécuter cette commande");
-        } else {
+        if (sender.isOp() || StringUtils.isEmpty(description.getPermission()) || sender.hasPermission(description.getPermission())) {
             if (args.length == 0) {
                 if (children.isEmpty() && !params.isEmpty() && params.get(0).getValue()) {
                     sendHelp(sender);
@@ -84,6 +84,8 @@ public class EvolvedCommand extends Command {
                     }
                 }
             }
+        } else {
+            sender.sendMessage("§cVous n'avez pas la permission d'exécuter cette commande");
         }
 
         return true;
@@ -310,11 +312,12 @@ public class EvolvedCommand extends Command {
         }
     }
 
-    private void sendMessage(CommandSender sender, BaseComponent component) {
+    private void sendMessage(CommandSender sender, BaseComponent[] components) {
         if (sender instanceof Player) {
-            ((Player) sender).spigot().sendMessage(component);
+            ((Player) sender).spigot().sendMessage(components);
         } else {
-            sender.sendMessage(component.toPlainText());
+
+            sender.sendMessage(TextComponent.toPlainText(components));
         }
     }
 }
