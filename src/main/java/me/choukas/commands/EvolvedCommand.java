@@ -10,6 +10,7 @@ package me.choukas.commands;
 
 import me.choukas.commands.api.CommandDescription;
 import me.choukas.commands.api.Condition;
+import me.choukas.commands.api.Requirement;
 import me.choukas.commands.api.Parameter;
 import me.choukas.commands.utils.Tuple;
 import org.bukkit.command.Command;
@@ -28,7 +29,7 @@ public class EvolvedCommand extends Command {
     private final List<EvolvedCommand> children = new ArrayList<>();
 
     private final List<Tuple<Parameter<?>, Boolean>> params = new ArrayList<>();
-    private final List<Condition> conditions = new ArrayList<>();
+    private final List<Requirement> requirements = new ArrayList<>();
 
     private final LinkedBlockingQueue<Tuple<?, Boolean>> args = new LinkedBlockingQueue<>();
 
@@ -166,9 +167,9 @@ public class EvolvedCommand extends Command {
     }
 
     @SafeVarargs
-    protected final void addCondition(Condition condition, Tuple<String, ?>... args) {
-        condition.inject(args);
-        conditions.add(condition);
+    protected final void addCondition(Requirement requirement, Tuple<String, ?>... args) {
+        requirement.inject(args);
+        requirements.add(requirement);
     }
 
     @SuppressWarnings("unchecked")
@@ -252,10 +253,12 @@ public class EvolvedCommand extends Command {
     }
 
     private boolean checkPreconditions(CommandSender sender, boolean verbose) {
-        for (Condition condition : conditions) {
+        for (Requirement requirement : requirements) {
+            Condition<CommandSender> condition = requirement.getCondition();
+
             if (!condition.check(sender)) {
                 if (verbose) {
-                    sender.sendMessage(condition.getMessage());
+                    sender.sendMessage(condition.getMessage(sender));
                 }
 
                 return false;
@@ -265,29 +268,23 @@ public class EvolvedCommand extends Command {
         return true;
     }
 
-    @SuppressWarnings("ReturnInsideFinallyBlock")
     private void tryExecute(CommandSender sender, String[] args) {
         if (checkPreconditions(sender, true)) {
             this.args.clear();
 
             for (int i = 0; i < args.length; i++) {
+                String arg = args[i];
                 Tuple<Parameter<?>, Boolean> tuple = params.get(i);
                 Parameter<?> param = tuple.getKey();
 
-                Optional<?> optional = Optional.empty();
-
-                try {
-                    optional = param.check(args[i]);
-                } catch (Exception ignored) {
-
-                } finally {
-                    if (optional.isPresent()) {
-                        this.args.offer(Tuple.of(optional.get(), tuple.getValue()));
-                    } else {
-                        sender.sendMessage(param.getMessage(args[i]));
+                for (Condition<String> condition : param.getConditions()) {
+                    if (!condition.check(arg)) {
+                        sender.sendMessage(condition.getMessage(arg));
                         return;
                     }
                 }
+
+                this.args.offer(Tuple.of(param.get(arg), tuple.getValue()));
             }
 
             execute(sender);

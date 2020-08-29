@@ -8,7 +8,7 @@
 
 package me.choukas.commands.api;
 
-import java.util.Optional;
+import java.util.List;
 
 public abstract class Parameter<T> implements TabCompleter<T> {
 
@@ -18,11 +18,11 @@ public abstract class Parameter<T> implements TabCompleter<T> {
         this.name = name;
     }
 
-    public final String getName() {
+    public abstract List<Condition<String>> getConditions();
+
+    public abstract T get(String arg);
+
+    public String getName() {
         return name;
     }
-
-    public abstract Optional<T> check(String arg);
-
-    public abstract String getMessage(String arg);
 }

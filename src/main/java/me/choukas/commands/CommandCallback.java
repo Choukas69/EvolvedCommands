@@ -2,6 +2,7 @@
 
 package me.choukas.commands;
 
+import me.choukas.commands.utils.Tuple;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
@@ -10,13 +11,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class CommandCallback {
 
-    private static final Map<UUID, Runnable> callbacks = new HashMap<>();
+    private static final Map<UUID, List<Tuple<Integer, Runnable>>> callbacks = new HashMap<>();
+
+    private static final Random random = new Random();
 
     public CommandCallback(JavaPlugin plugin) {
         Bukkit.getPluginManager().registerEvents(new Listener() {
@@ -26,7 +27,17 @@ public class CommandCallback {
                     UUID player = event.getPlayer().getUniqueId();
 
                     if (callbacks.containsKey(player)) {
-                        callbacks.get(player).run();
+                        Tuple<Integer, Runnable> toRemove = null;
+                        for (Tuple<Integer, Runnable> tuple : callbacks.get(player)) {
+                            if (event.getMessage().replaceFirst("/callback", "").startsWith(String.valueOf(tuple.getKey()))) {
+                                tuple.getValue().run();
+                                toRemove = tuple;
+                                break;
+                            }
+                        }
+                        if (toRemove != null) {
+                            callbacks.get(player).remove(toRemove);
+                        }
                     }
                 }
             }
@@ -41,7 +52,11 @@ public class CommandCallback {
      * @param callback callback to run
      */
     public static void createCommand(TextComponent message, UUID uuid, Runnable callback) {
-        message.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/callback"));
-        callbacks.put(uuid, callback);
+        int rand = random.nextInt(9999);
+        message.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/callback" + rand));
+        callbacks.merge(uuid, new ArrayList<>(Collections.singletonList(Tuple.of(rand, callback))), (tuples, tuples2) -> {
+            tuples.addAll(tuples2);
+            return tuples;
+        });
     }
 }
